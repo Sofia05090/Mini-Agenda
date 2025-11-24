@@ -1,128 +1,96 @@
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const restartBtn = document.getElementById('restartBtn');
-const scoreElement = document.getElementById('score');
-const speedRange = document.getElementById('speedRange');
-const speedValue = document.getElementById('speedValue');
+import './style.css';
 
-let box = 20;
-let game;
-let direction;
-let snake;
-let food;
-let score;
-let speed = 3; // valor inicial (de 1 a 5)
+const app = document.getElementById("app");
 
-function initGame() {
-  snake = [{ x: 9 * box, y: 10 * box }];
-  direction = null;
-  food = randomFood();
-  score = 0;
-  scoreElement.textContent = score;
+app.innerHTML = `
+  <div class="container">
+    <h1>Mini Agenda de Hábitos</h1>
+    <div class="add-habit">
+      <input type="text" id="habitInput" placeholder="Nuevo hábito">
+      <button id="addHabitBtn">Agregar</button>
+    </div>
+    <ul id="habitList"></ul>
+    <div class="summary">
+      <p>Progreso semanal: <span id="progressPercent">0%</span></p>
+      <div class="progress-bar">
+        <div id="progressBarFill"></div>
+      </div>
+      <button id="clearBtn">Limpiar todo</button>
+    </div>
+  </div>
+`;
 
-  if (game) clearInterval(game);
-  startGameLoop();
+// Ahora sí puedes seleccionar los elementos
+const habitInput = document.getElementById("habitInput");
+const addHabitBtn = document.getElementById("addHabitBtn");
+const habitList = document.getElementById("habitList");
+const clearBtn = document.getElementById("clearBtn");
+const progressPercent = document.getElementById("progressPercent");
+const progressBarFill = document.getElementById("progressBarFill");
+
+// Colores para cada hábito
+const habitColors = ["#FF6B6B", "#6BCB77", "#4D96FF", "#FFD93D", "#FF6FF3"];
+
+let habits = JSON.parse(localStorage.getItem("habits")) || [];
+
+// Función para renderizar hábitos
+function renderHabits() {
+    habitList.innerHTML = "";
+    habits.forEach((habit, index) => {
+        const li = document.createElement("li");
+        li.style.backgroundColor = habit.color;
+        li.className = habit.completed ? "completed" : "";
+        li.innerHTML = `
+            ${habit.name}
+            <button class="check-btn">${habit.completed ? "✔" : "✖"}</button>
+        `;
+        // Cambiar estado al hacer click
+        li.querySelector(".check-btn").addEventListener("click", () => {
+            habits[index].completed = !habits[index].completed;
+            saveHabits();
+            renderHabits();
+        });
+        habitList.appendChild(li);
+    });
+    updateProgress();
 }
 
-function startGameLoop() {
-  // Velocidad inversamente proporcional (más valor = más rápido)
-  const interval = 300 - speed * 40; 
-  game = setInterval(draw, interval);
+// Guardar en localStorage
+function saveHabits() {
+    localStorage.setItem("habits", JSON.stringify(habits));
 }
 
-function resizeCanvas() {
-  const size = Math.min(window.innerWidth * 0.9, 400);
-  canvas.width = size;
-  canvas.height = size;
-  box = size / 20;
-}
-resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
-
-document.addEventListener('keydown', event => {
-  if (event.key === 'ArrowLeft' && direction !== 'RIGHT') direction = 'LEFT';
-  else if (event.key === 'ArrowUp' && direction !== 'DOWN') direction = 'UP';
-  else if (event.key === 'ArrowRight' && direction !== 'LEFT') direction = 'RIGHT';
-  else if (event.key === 'ArrowDown' && direction !== 'UP') direction = 'DOWN';
+// Agregar hábito
+addHabitBtn.addEventListener("click", () => {
+    const name = habitInput.value.trim();
+    if(name) {
+        const color = habitColors[habits.length % habitColors.length];
+        habits.push({ name, completed: false, color });
+        habitInput.value = "";
+        saveHabits();
+        renderHabits();
+    }
 });
 
-restartBtn.addEventListener('click', initGame);
-
-// 🎚 Control de velocidad dinámico
-speedRange.addEventListener('input', () => {
-  speed = parseInt(speedRange.value);
-  speedValue.textContent = speed;
-  clearInterval(game);
-  startGameLoop();
+// Limpiar todo
+clearBtn.addEventListener("click", () => {
+    habits = [];
+    saveHabits();
+    renderHabits();
 });
 
-function randomFood() {
-  const totalBoxes = canvas.width / box;
-  return {
-    x: Math.floor(Math.random() * (totalBoxes - 1)) * box,
-    y: Math.floor(Math.random() * (totalBoxes - 1)) * box
-  };
+// Actualizar progreso
+function updateProgress() {
+    if(habits.length === 0) {
+        progressPercent.innerText = "0%";
+        progressBarFill.style.width = "0%";
+        return;
+    }
+    const completedCount = habits.filter(h => h.completed).length;
+    const percent = Math.round((completedCount / habits.length) * 100);
+    progressPercent.innerText = `${percent}%`;
+    progressBarFill.style.width = percent + "%";
 }
 
-function drawSnake() {
-  for (let i = 0; i < snake.length; i++) {
-    ctx.fillStyle = i === 0 ? '#4caf50' : '#8bc34a';
-    ctx.fillRect(snake[i].x, snake[i].y, box, box);
-    ctx.strokeStyle = '#111';
-    ctx.strokeRect(snake[i].x, snake[i].y, box, box);
-  }
-}
-
-function drawFood() {
-  ctx.fillStyle = '#f44336';
-  ctx.fillRect(food.x, food.y, box, box);
-}
-
-function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  drawSnake();
-  drawFood();
-
-  let headX = snake[0].x;
-  let headY = snake[0].y;
-
-  if (direction === 'LEFT') headX -= box;
-  if (direction === 'UP') headY -= box;
-  if (direction === 'RIGHT') headX += box;
-  if (direction === 'DOWN') headY += box;
-
-  if (headX === food.x && headY === food.y) {
-    score++;
-    scoreElement.textContent = score;
-    food = randomFood();
-  } else {
-    snake.pop();
-  }
-
-  const newHead = { x: headX, y: headY };
-
-  if (
-    headX < 0 ||
-    headY < 0 ||
-    headX >= canvas.width ||
-    headY >= canvas.height ||
-    snake.some(segment => segment.x === headX && segment.y === headY)
-  ) {
-    clearInterval(game);
-    alert('💀 Juego terminado. Puntaje: ' + score);
-  }
-
-  snake.unshift(newHead);
-}
-
-// 🚫 Evitar que las flechas modifiquen el control de velocidad durante el juego
-speedRange.addEventListener('keydown', (event) => {
-  const arrowKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];
-  if (arrowKeys.includes(event.key)) {
-    event.preventDefault();
-  }
-});
-
-
-initGame();
+// Inicializar
+renderHabits();
