@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MiniAgenda</string>
+    <string name="title_activity_main">MiniAgenda</string>
+    <string name="package_name">com.laura.MiniAgenda</string>
+    <string name="custom_url_scheme">com.laura.MiniAgenda</string>
+</resources>
